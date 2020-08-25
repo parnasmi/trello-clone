@@ -2,20 +2,8 @@ import React, { createContext, useReducer, useContext } from "react";
 import { nanoid } from "nanoid";
 import { findItemIndexById } from "./utils/findItemIndexById";
 import { moveItem } from "./moveItem";
-
-interface Task {
-	id: string;
-	text: string;
-}
-interface List {
-	id: string;
-	text: string;
-	tasks: Task[];
-}
-
-export interface AppState {
-	lists: List[];
-}
+import { DragItem } from "./DragItem";
+import { AppState } from "./App";
 
 type Action =
 	| {
@@ -32,9 +20,23 @@ type Action =
 				dragIndex: number;
 				hoverIndex: number;
 			};
+	  }
+	| {
+			type: "SET_DRAGGED_ITEM";
+			payload: DragItem | undefined;
+	  }
+	| {
+			type: "MOVE_TASK";
+			payload: {
+				dragIndex: number;
+				hoverIndex: number;
+				sourceColumn: string;
+				targetColumn: string;
+			};
 	  };
 
 const appData: AppState = {
+	draggedItem: undefined,
 	lists: [
 		{
 			id: "0",
@@ -86,6 +88,20 @@ const appStateReducer = (state: AppState, action: Action): AppState => {
 			state.lists = moveItem(state.lists, dragIndex, hoverIndex);
 			return { ...state };
 		}
+		case "SET_DRAGGED_ITEM": {
+			return {
+				...state,
+				draggedItem: action.payload
+			};
+		}
+		case "MOVE_TASK": {
+			const { dragIndex, hoverIndex, sourceColumn, targetColumn } = action.payload;
+			const sourceLaneIndex = findItemIndexById(state.lists, sourceColumn);
+			const targetLaneIndex = findItemIndexById(state.lists, targetColumn);
+			const item = state.lists[sourceLaneIndex].tasks.splice(dragIndex, 1)[0];
+			state.lists[targetLaneIndex].tasks.splice(hoverIndex, 0, item);
+			return { ...state };
+		}
 		default: {
 			return state;
 		}
@@ -94,6 +110,7 @@ const appStateReducer = (state: AppState, action: Action): AppState => {
 
 export const AppStateProvider = ({ children }: React.PropsWithChildren<{}>) => {
 	const [state, dispatch] = useReducer(appStateReducer, appData);
+	// console.log("state", state);
 	return <AppStateContext.Provider value={{ state, dispatch }}>{children}</AppStateContext.Provider>;
 };
 
